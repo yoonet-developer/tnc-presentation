@@ -13,7 +13,7 @@ export default function TeamworkPresentation() {
   const iceBreakerInterval = useRef<NodeJS.Timeout | null>(null);
   const slidesContainerRef = useRef<HTMLDivElement>(null);
 
-  const totalSlides = 12;
+  const totalSlides = 14;
 
   useEffect(() => {
     updateProgress();
@@ -84,7 +84,7 @@ export default function TeamworkPresentation() {
 
   const goToTimerSelection = () => {
     if (selectedConcept) {
-      scrollToSlide(9);
+      scrollToSlide(11);
     }
   };
 
@@ -560,6 +560,68 @@ export default function TeamworkPresentation() {
         </section>
 
         <section className="slide">
+          <h2>Hello, I&apos;m JCO!</h2>
+          <div className="content-card animate-in">
+            <div style={{textAlign: 'center', marginBottom: '40px'}}>
+              <div style={{
+                width: '150px',
+                height: '150px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #8A9EFF, #FF6495)',
+                margin: '0 auto 30px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <span style={{fontSize: '3rem', color: 'white'}}>JCO</span>
+              </div>
+            </div>
+            <p style={{fontSize: '1.4rem', marginBottom: '30px'}}>Your guide for today&apos;s journey into teamwork excellence</p>
+            <div className="story-box">
+              <p>A bit about me...</p>
+              <ul className="feature-list" style={{textAlign: 'left'}}>
+                <li>Passionate about building collaborative teams</li>
+                <li>Experienced in transforming group dynamics</li>
+                <li>Believer in the power of collective success</li>
+              </ul>
+            </div>
+            <p style={{marginTop: '30px', color: '#8A9EFF', fontSize: '1.2rem'}}>&quot;Together, we&apos;ll discover how to unlock your team&apos;s full potential&quot;</p>
+          </div>
+        </section>
+
+        <section className="slide">
+          <h2>Let&apos;s Define Our Terms</h2>
+          <div className="content-card">
+            <div style={{display: 'grid', gridTemplateColumns: '1fr', gap: '30px'}}>
+              <div className="story-box" style={{background: 'linear-gradient(135deg, rgba(138, 158, 255, 0.15), rgba(138, 158, 255, 0.05))'}}>
+                <h3 style={{color: '#8A9EFF', marginBottom: '15px'}}>Teamwork</h3>
+                <p style={{fontStyle: 'normal', fontSize: '1.2rem'}}>The <strong>combined action</strong> of a group working towards a common goal</p>
+                <p style={{marginTop: '15px', color: '#6C7091'}}>Think: Orchestra musicians playing in harmony</p>
+                <ul style={{marginTop: '15px', listStyle: 'none'}}>
+                  <li>• Shared responsibilities</li>
+                  <li>• Coordinated effort</li>
+                  <li>• Mutual support</li>
+                </ul>
+              </div>
+
+              <div className="story-box" style={{background: 'linear-gradient(135deg, rgba(255, 100, 149, 0.15), rgba(255, 100, 149, 0.05))'}}>
+                <h3 style={{color: '#FF6495', marginBottom: '15px'}}>Collaboration</h3>
+                <p style={{fontStyle: 'normal', fontSize: '1.2rem'}}>The <strong>active partnership</strong> where people create something together</p>
+                <p style={{marginTop: '15px', color: '#6C7091'}}>Think: Jazz musicians improvising together</p>
+                <ul style={{marginTop: '15px', listStyle: 'none'}}>
+                  <li>• Co-creation</li>
+                  <li>• Shared ownership</li>
+                  <li>• Synergistic innovation</li>
+                </ul>
+              </div>
+            </div>
+            <p style={{marginTop: '30px', textAlign: 'center', fontSize: '1.3rem', color: '#EEEFF4'}}>
+              <strong>Today we&apos;ll explore both</strong> - how to work together AND create together
+            </p>
+          </div>
+        </section>
+
+        <section className="slide">
           <h2>A $125 Million Silence</h2>
           <div className="content-card animate-in">
             <div className="story-box">
@@ -732,7 +794,6 @@ export default function TeamworkPresentation() {
           <h2>Your Commitment</h2>
           <div className="content-card">
             <h3>One Thing You&apos;ll Change</h3>
-            <p style={{marginBottom: '40px'}}>Write down and share with your partner:</p>
             <div className="story-box">
               <p style={{fontSize: '1.5rem', color: '#8A9EFF'}}>&quot;By next Friday, I will...&quot;</p>
             </div>
