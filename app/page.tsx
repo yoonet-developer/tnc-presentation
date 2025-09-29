@@ -1,428 +1,139 @@
-'use client'
+'use client';
 
-import React, { useState, useEffect, useRef } from 'react'
-
-type TimerRefs = {
-  [key: string]: NodeJS.Timeout | null
-}
+import { useState, useEffect, useRef } from 'react';
 
 export default function TeamworkPresentation() {
-  const [currentSlide, setCurrentSlide] = useState(0)
-  const [timer30, setTimer30] = useState(30)
-  const [timer60, setTimer60] = useState(60)
-  const [isTimer30Running, setIsTimer30Running] = useState(false)
-  const [isTimer60Running, setIsTimer60Running] = useState(false)
-  const timerRefs = useRef<TimerRefs>({})
-  
-  const totalSlides = 12
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [selectedConcept, setSelectedConcept] = useState<string | null>(null);
+  const [selectedTime, setSelectedTime] = useState(30);
+  const [currentTimeLeft, setCurrentTimeLeft] = useState(30);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+
+  const timerInterval = useRef<NodeJS.Timeout | null>(null);
+  const iceBreakerInterval = useRef<NodeJS.Timeout | null>(null);
+  const slidesContainerRef = useRef<HTMLDivElement>(null);
+
+  const totalSlides = 12;
 
   useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') navigateSlide(-1)
-      if (e.key === 'ArrowRight') navigateSlide(1)
-    }
-    window.addEventListener('keydown', handleKeyPress)
-    return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [currentSlide])
+    updateProgress();
 
-  const navigateSlide = (direction: number) => {
-    const newSlide = currentSlide + direction
-    if (newSlide >= 0 && newSlide < totalSlides) {
-      setCurrentSlide(newSlide)
-    }
-  }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') nextSlide();
+      if (e.key === 'ArrowLeft') previousSlide();
+    };
 
-  const startTimer = (duration: number, which: '30' | '60') => {
-    const isRunning = which === '30' ? isTimer30Running : isTimer60Running
-    if (isRunning) return
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [currentSlide]);
 
-    const setRunning = which === '30' ? setIsTimer30Running : setIsTimer60Running
-    const setTime = which === '30' ? setTimer30 : setTimer60
-    
-    setRunning(true)
-    let timeLeft = duration
-    
-    timerRefs.current[which] = setInterval(() => {
-      timeLeft--
-      setTime(timeLeft)
-      
-      if (timeLeft <= 0) {
-        if (timerRefs.current[which]) {
-          clearInterval(timerRefs.current[which]!)
-          timerRefs.current[which] = null
-        }
-        setRunning(false)
+  useEffect(() => {
+    const handleScroll = () => {
+      if (slidesContainerRef.current) {
+        const slideHeight = window.innerHeight;
+        const scrollPosition = slidesContainerRef.current.scrollTop;
+        const newSlide = Math.round(scrollPosition / slideHeight);
+        setCurrentSlide(newSlide);
       }
-    }, 1000)
-  }
+    };
 
-  const resetTimer = (duration: number, which: '30' | '60') => {
-    if (timerRefs.current[which]) {
-      clearInterval(timerRefs.current[which]!)
-      timerRefs.current[which] = null
+    const container = slidesContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      return () => container.removeEventListener('scroll', handleScroll);
     }
-    
-    if (which === '30') {
-      setTimer30(30)
-      setIsTimer30Running(false)
+  }, []);
+
+  const nextSlide = () => {
+    if (currentSlide < totalSlides - 1) {
+      const newSlide = currentSlide + 1;
+      setCurrentSlide(newSlide);
+      scrollToSlide(newSlide);
+    }
+  };
+
+  const previousSlide = () => {
+    if (currentSlide > 0) {
+      const newSlide = currentSlide - 1;
+      setCurrentSlide(newSlide);
+      scrollToSlide(newSlide);
+    }
+  };
+
+  const scrollToSlide = (slideIndex: number) => {
+    const slides = document.querySelectorAll('.slide');
+    slides[slideIndex]?.scrollIntoView({ behavior: 'smooth' });
+    updateProgress();
+  };
+
+  const updateProgress = () => {
+    const progress = ((currentSlide + 1) / totalSlides) * 100;
+    const progressBar = document.getElementById('progressBar');
+    if (progressBar) {
+      progressBar.style.width = progress + '%';
+    }
+  };
+
+  const selectBarrier = (element: HTMLDivElement) => {
+    element.classList.toggle('selected');
+  };
+
+  const selectGameConcept = (concept: string) => {
+    setSelectedConcept(concept);
+  };
+
+  const goToTimerSelection = () => {
+    if (selectedConcept) {
+      scrollToSlide(9);
+    }
+  };
+
+  const selectTime = (time: number) => {
+    setSelectedTime(time);
+    setCurrentTimeLeft(time);
+    setIsTimerRunning(false);
+  };
+
+  const toggleTimer = () => {
+    if (!isTimerRunning) {
+      startTimer();
+      setIsTimerRunning(true);
     } else {
-      setTimer60(60)
-      setIsTimer60Running(false)
+      if (timerInterval.current) clearInterval(timerInterval.current);
+      setIsTimerRunning(false);
     }
-  }
+  };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
+  const startTimer = () => {
+    if (timerInterval.current) clearInterval(timerInterval.current);
 
-  const slides = [
-    // Slide 1: Enhanced Title
-    {
-      id: 'intro',
-      content: (
-        <div className="slide-content">
-          <div className="title-animation">
-            <h1 className="main-title">
-              <span className="title-word">Teamwork</span>
-              <span className="title-symbol">&</span>
-              <span className="title-word">Collaboration</span>
-            </h1>
-            <div className="code-subtitle">
-              <span className="code-bracket">{'{ '}</span>
-              <span className="code-text">Building Better Software Together</span>
-              <span className="code-bracket">{' }'}</span>
-            </div>
-          </div>
-          <div className="intro-stats">
-            <div className="stat-item">
-              <span className="stat-number">80%</span>
-              <span className="stat-label">of our work involves collaboration</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-number">3x</span>
-              <span className="stat-label">more innovative with diverse teams</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-number">5x</span>
-              <span className="stat-label">better performance in collaborative teams</span>
-            </div>
-          </div>
-        </div>
-      )
-    },
-    // Slide 2: Foundation
-    {
-      id: 'foundation',
-      content: (
-        <div className="slide-content">
-          <h2>The Foundation: What's the Difference?</h2>
-          <div className="foundation-visual">
-            <div className="concept-card">
-              <div className="concept-icon">🚣</div>
-              <h3>Teamwork</h3>
-              <p>Working <span className="emphasis">together</span> towards a goal</p>
-              <p className="subtitle">Like rowing a boat - everyone does their part</p>
-            </div>
-            <div className="concept-card">
-              <div className="concept-icon">🎷</div>
-              <h3>Collaboration</h3>
-              <p>Creating <span className="emphasis">together</span> with shared ideas</p>
-              <p className="subtitle">Like a jazz band - improvising and building on each other</p>
-            </div>
-          </div>
-          <p className="foundation-bottom">
-            One is about <span className="code-inline">dividing tasks</span>, 
-            the other is about <span className="code-inline">multiplying ideas</span>
-          </p>
-        </div>
-      )
-    },
-    // Slide 3: Ice Breaker
-    {
-      id: 'icebreaker',
-      content: (
-        <div className="slide-content">
-          <h2>🌟 Ice Breaker: Success Stories</h2>
-          <div className="icebreaker-container">
-            <div className="icebreaker-icon">💬</div>
-            <div className="icebreaker-prompt">
-              <h3>Share Your Experience!</h3>
-              <p>Turn to someone near you and share:</p>
-              <p className="prompt-question">
-                "A time when teamwork & collaboration helped you succeed"
-              </p>
-              <p className="subtitle">What big progress did you make together?</p>
-            </div>
-            <p className="timer-indicator">⏱️ 1 minute</p>
-          </div>
-        </div>
-      )
-    },
-    // Slide 4: Why This Matters
-    {
-      id: 'why-matters',
-      content: (
-        <div className="slide-content">
-          <h2>Why This Matters</h2>
-          <div className="icon-grid">
-            <div className="icon-card">
-              <div className="icon">🤝</div>
-              <h3>Trust & Relationships</h3>
-              <p>Your network is your net worth</p>
-            </div>
-            <div className="icon-card">
-              <div className="icon">🧩</div>
-              <h3>Better Problem Solving</h3>
-              <p>None of us is as smart as all of us</p>
-            </div>
-            <div className="icon-card">
-              <div className="icon">💡</div>
-              <h3>Innovation</h3>
-              <p>Great ideas rarely happen in isolation</p>
-            </div>
-          </div>
-        </div>
-      )
-    },
-    // Slide 5: Dev Teams Excel
-    {
-      id: 'dev-teams',
-      content: (
-        <div className="slide-content">
-          <h2>&lt;/&gt; Why Dev Teams Excel Together</h2>
-          <div className="icon-grid-large">
-            {[
-              { icon: '🐛', title: 'Debugging', desc: 'More eyes = fewer bugs' },
-              { icon: '👀', title: 'Code Reviews', desc: 'Like spell-check but for logic' },
-              { icon: '📚', title: 'Knowledge Transfer', desc: 'Learn that framework you\'ve been avoiding' },
-              { icon: '🚌', title: 'The "Bus Factor"', desc: 'What if someone gets hit by a bus?' },
-              { icon: '🏗️', title: 'Better Architecture', desc: 'Multiple perspectives = robust solutions' },
-              { icon: '⚡', title: 'Faster Delivery', desc: 'Parallel work, shared ownership' }
-            ].map((item, i) => (
-              <div key={i} className="icon-card">
-                <div className="icon">{item.icon}</div>
-                <h3>{item.title}</h3>
-                <p>{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )
-    },
-    // Slide 6: 5 C's
-    {
-      id: 'five-cs',
-      content: (
-        <div className="slide-content">
-          <h2>The 5 C's of Great Teams</h2>
-          <div className="five-cs">
-            {[
-              { icon: '💬', title: 'Communication', desc: 'Not just Slack reactions' },
-              { icon: '🤝', title: 'Collaboration', desc: 'Beyond "LGTM" on PRs' },
-              { icon: '✅', title: 'Commitment', desc: 'Showing up for standups' },
-              { icon: '💪', title: 'Courage', desc: 'Admitting when you broke production' },
-              { icon: '🎉', title: 'Celebration', desc: 'Merge parties!' }
-            ].map((c, i) => (
-              <div key={i} className="c-item">
-                <div className="c-icon">{c.icon}</div>
-                <h3>{c.title}</h3>
-                <p>{c.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )
-    },
-    // Slide 7: Challenges
-    {
-      id: 'challenges',
-      content: (
-        <div className="slide-content">
-          <h2>Common Team Challenges (We've All Been There)</h2>
-          <div className="challenges-grid">
-            {[
-              { emoji: '🤐', title: 'The "Silent Meeting"', problem: 'Everyone\'s on mute, mentally and literally', solution: 'Start with a fun check-in question' },
-              { emoji: '👨‍🍳', title: '"Too Many Cooks"', problem: 'Everyone has opinions, no one decides', solution: 'Assign a decision maker' },
-              { emoji: '🙅', title: '"Not My Job"', problem: 'Strict boundaries, no flexibility', solution: 'Shared ownership mindset' },
-              { emoji: '📧', title: '"Reply All Chaos"', problem: 'Communication overload', solution: 'Clear communication channels' }
-            ].map((item, i) => (
-              <div key={i} className="challenge-card">
-                <h3>{item.emoji} {item.title}</h3>
-                <p>{item.problem}</p>
-                <p className="solution">💡 Solution: {item.solution}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )
-    },
-    // Slide 8: Practical Tips
-    {
-      id: 'tips',
-      content: (
-        <div className="slide-content">
-          <h2>Practical Tips You Can Use Today</h2>
-          <div className="tips-grid">
-            {[
-              { num: 1, title: 'The "Yes, And..." Rule', desc: 'From improv comedy - build on ideas instead of shutting them down' },
-              { num: 2, title: 'The 2-Pizza Rule', desc: 'If a team can\'t be fed with 2 pizzas, it\'s too big' },
-              { num: 3, title: 'Pomodoro for Pairs', desc: '25 min focused work, 5 min break - perfect for pair programming' },
-              { num: 4, title: 'Document Everything', desc: 'Your future self (and team) will thank you' }
-            ].map((tip, i) => (
-              <div key={i} className="tip-card">
-                <span className="tip-number">{tip.num}</span>
-                <h3>{tip.title}</h3>
-                <p>{tip.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )
-    },
-    // Slide 9: Success Stories
-    {
-      id: 'stories',
-      content: (
-        <div className="slide-content">
-          <h2>Real Success Stories</h2>
-          <div className="stories-container">
-            {[
-              { icon: '🐧', title: 'Linux Kernel', desc: '15,000 developers, one kernel' },
-              { icon: '📚', title: 'Wikipedia', desc: 'Millions collaborating on truth' },
-              { icon: '💻', title: 'Stack Overflow', desc: '50M+ devs helping each other' }
-            ].map((story, i) => (
-              <div key={i} className="story-card">
-                <div className="story-icon">{story.icon}</div>
-                <h3>{story.title}</h3>
-                <p>{story.desc}</p>
-              </div>
-            ))}
-          </div>
-          <p className="story-footer">
-            And every successful project in <span className="emphasis">your company</span> too!
-          </p>
-        </div>
-      )
-    },
-    // Slide 10: Drawing Game
-    {
-      id: 'game',
-      content: (
-        <div className="slide-content">
-          <h2>🎨 Collaborative Drawing Game</h2>
-          <div className="game-container">
-            <div className="game-instructions">
-              <h3>How to Play:</h3>
-              <ol>
-                <li>Choose a concept (e.g., "Teamwork in action", "Our dream office")</li>
-                <li>First person starts drawing</li>
-                <li>When timer ends, pass to next person</li>
-                <li>Each person adds to the drawing - no talking!</li>
-                <li>Reveal and discuss the final masterpiece</li>
-              </ol>
-            </div>
-            <p className="timer-choice">Choose your timer duration:</p>
-            <div className="timer-section">
-              <div className="timer-box">
-                <div className="timer-label">Quick Round</div>
-                <div className={`timer-display ${timer30 <= 5 ? 'timer-ending' : ''}`}>
-                  {formatTime(timer30)}
-                </div>
-                <div className="timer-controls">
-                  <button 
-                    className="timer-btn start-btn" 
-                    onClick={() => startTimer(30, '30')}
-                    disabled={isTimer30Running}
-                  >
-                    Start
-                  </button>
-                  <button 
-                    className="timer-btn reset-btn" 
-                    onClick={() => resetTimer(30, '30')}
-                  >
-                    Reset
-                  </button>
-                </div>
-              </div>
-              <div className="timer-box">
-                <div className="timer-label">Extended Round</div>
-                <div className={`timer-display ${timer60 <= 5 ? 'timer-ending' : ''}`}>
-                  {formatTime(timer60)}
-                </div>
-                <div className="timer-controls">
-                  <button 
-                    className="timer-btn start-btn" 
-                    onClick={() => startTimer(60, '60')}
-                    disabled={isTimer60Running}
-                  >
-                    Start
-                  </button>
-                  <button 
-                    className="timer-btn reset-btn" 
-                    onClick={() => resetTimer(60, '60')}
-                  >
-                    Reset
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )
-    },
-    // Slide 11: Takeaways
-    {
-      id: 'takeaways',
-      content: (
-        <div className="slide-content">
-          <h2>Key Takeaways</h2>
-          <div className="takeaways-box">
-            {[
-              { num: '1️⃣', text: 'Teamwork ≠ Collaboration (but you need both)' },
-              { num: '2️⃣', text: 'Great teams are made, not born' },
-              { num: '3️⃣', text: 'Start small: One conversation, one shared idea' }
-            ].map((item, i) => (
-              <div key={i} className="takeaway-item">
-                <span className="takeaway-icon">{item.num}</span>
-                <span className="takeaway-text">{item.text}</span>
-              </div>
-            ))}
-          </div>
-          <p className="challenge-text">
-            💪 Challenge: Try one collaborative technique this week!
-          </p>
-        </div>
-      )
-    },
-    // Slide 12: Closing
-    {
-      id: 'closing',
-      content: (
-        <div className="slide-content">
-          <h2>🚀 Final Thoughts</h2>
-          <div className="quote">
-            <p>"If you want to go fast, go alone. If you want to go far, go together."</p>
-            <div className="author">- African Proverb</div>
-          </div>
-          <h3 className="git-message">
-            <span className="code-inline">git push</span> alone, 
-            <span className="code-inline">git pull</span> together
-          </h3>
-          <div className="final-message">
-            <p>The best code is written <span className="emphasis">together</span></p>
-            <p>The best products are built <span className="emphasis">together</span></p>
-            <p>The best careers are grown <span className="emphasis">together</span></p>
-          </div>
-          <p className="thank-you">Thank you! Let's build amazing things together! 🎉</p>
-        </div>
-      )
-    }
-  ]
+    timerInterval.current = setInterval(() => {
+      setCurrentTimeLeft(prev => {
+        if (prev <= 1) {
+          if (timerInterval.current) clearInterval(timerInterval.current);
+          setIsTimerRunning(false);
+          setTimeout(() => resetTimer(), 1500);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const resetTimer = () => {
+    if (timerInterval.current) clearInterval(timerInterval.current);
+    setCurrentTimeLeft(selectedTime);
+    setIsTimerRunning(false);
+  };
+
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = time % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
 
   return (
-    <div className="presentation-wrapper">
+    <>
       <style jsx global>{`
         * {
           margin: 0;
@@ -430,170 +141,286 @@ export default function TeamworkPresentation() {
           box-sizing: border-box;
         }
 
-        .presentation-wrapper {
-          width: 100vw;
-          height: 100vh;
-          background: linear-gradient(135deg, #181925 0%, #2a2b3d 100%);
-          display: flex;
-          justify-content: center;
-          align-items: center;
+        body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          background: linear-gradient(135deg, #181925 0%, #2A2B3D 100%);
+          color: #EEEFF4;
+          overflow: hidden;
+          position: relative;
         }
 
-        .presentation-container {
-          width: 95%;
-          max-width: 1200px;
-          height: 95vh;
-          max-height: 800px;
-          background: #eeeff4;
-          border-radius: 24px;
-          box-shadow: 0 25px 70px rgba(0,0,0,0.4);
-          position: relative;
-          overflow: hidden;
+        .nav-dots {
+          position: fixed;
+          right: 30px;
+          top: 50%;
+          transform: translateY(-50%);
+          z-index: 100;
           display: flex;
           flex-direction: column;
+          gap: 15px;
         }
 
-        .slide-indicator {
-          position: absolute;
-          top: 20px;
-          right: 20px;
-          color: #6c7091;
-          font-size: 14px;
-          font-weight: 600;
-          background: rgba(255, 255, 255, 0.8);
-          padding: 8px 16px;
-          border-radius: 20px;
-          z-index: 10;
-        }
-
-        .progress-dots {
-          position: absolute;
-          bottom: 80px;
-          left: 50%;
-          transform: translateX(-50%);
-          display: flex;
-          gap: 8px;
-          z-index: 15;
-        }
-
-        .dot {
-          width: 8px;
-          height: 8px;
+        .nav-dot {
+          width: 12px;
+          height: 12px;
           border-radius: 50%;
-          background: #6c7091;
-          opacity: 0.3;
+          background: rgba(238, 239, 244, 0.3);
+          cursor: pointer;
           transition: all 0.3s ease;
+          border: 2px solid transparent;
         }
 
-        .dot.active {
-          opacity: 1;
-          background: #8a9eff;
+        .nav-dot.active {
+          background: #8A9EFF;
           transform: scale(1.3);
+          border-color: rgba(138, 158, 255, 0.3);
+        }
+
+        .nav-dot:hover {
+          background: rgba(138, 158, 255, 0.7);
+        }
+
+        .slides-container {
+          height: 100vh;
+          overflow-y: scroll;
+          scroll-snap-type: y mandatory;
+          scroll-behavior: smooth;
+          scrollbar-width: none;
+        }
+
+        .slides-container::-webkit-scrollbar {
+          display: none;
         }
 
         .slide {
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          padding: 40px 60px 100px 60px;
-          opacity: 0;
-          transform: translateX(100%);
-          transition: all 0.5s ease-in-out;
-        }
-
-        .slide.active {
-          opacity: 1;
-          transform: translateX(0);
-        }
-
-        .slide.prev {
-          transform: translateX(-100%);
-        }
-
-        .slide-content {
-          width: 100%;
-          max-width: 1100px;
+          min-height: 100vh;
+          scroll-snap-align: start;
           display: flex;
           flex-direction: column;
+          justify-content: center;
           align-items: center;
+          padding: 60px 40px;
+          position: relative;
+        }
+
+        .slide:nth-child(odd) {
+          background: linear-gradient(135deg, #181925 0%, #2A2B3D 100%);
+        }
+
+        .slide:nth-child(even) {
+          background: linear-gradient(135deg, #2A2B3D 0%, #181925 100%);
+        }
+
+        h1 {
+          font-size: 4rem;
+          font-weight: 800;
+          margin-bottom: 30px;
+          background: linear-gradient(135deg, #8A9EFF, #FF6495);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          text-align: center;
+          line-height: 1.2;
+        }
+
+        h2 {
+          font-size: 3rem;
+          font-weight: 700;
+          color: #8A9EFF;
+          margin-bottom: 30px;
           text-align: center;
         }
 
-        /* Enhanced Title Styles */
-        .title-animation {
-          margin-bottom: 50px;
-        }
-
-        .main-title {
-          font-size: 3.5em;
-          font-weight: 800;
+        h3 {
+          font-size: 2rem;
+          color: #FF6495;
           margin-bottom: 20px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          text-align: center;
+        }
+
+        p {
+          font-size: 1.3rem;
+          color: #EEEFF4;
+          line-height: 1.8;
+          max-width: 800px;
+          text-align: center;
+          margin-bottom: 20px;
+        }
+
+        .subtitle {
+          font-size: 1.5rem;
+          color: #6C7091;
+          text-align: center;
+          margin-bottom: 40px;
+        }
+
+        .content-card {
+          background: rgba(42, 43, 61, 0.7);
+          border: 1px solid rgba(138, 158, 255, 0.2);
+          border-radius: 20px;
+          padding: 40px;
+          backdrop-filter: blur(10px);
+          box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+          max-width: 900px;
+          margin: 20px auto;
+        }
+
+        .story-box {
+          background: linear-gradient(135deg, rgba(138, 158, 255, 0.1), rgba(255, 100, 149, 0.1));
+          border-left: 4px solid #FF6495;
+          padding: 30px;
+          margin: 30px 0;
+          border-radius: 10px;
+          font-style: italic;
+        }
+
+        .button {
+          background: linear-gradient(135deg, #8A9EFF, #FF6495);
+          color: white;
+          border: none;
+          padding: 15px 40px;
+          font-size: 1.2rem;
+          font-weight: 600;
+          border-radius: 50px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          margin: 10px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        .button:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 10px 30px rgba(138, 158, 255, 0.4);
+        }
+
+        .button:active {
+          transform: translateY(0);
+        }
+
+        .button.secondary {
+          background: transparent;
+          border: 2px solid #8A9EFF;
+          color: #8A9EFF;
+        }
+
+        .button.secondary:hover {
+          background: rgba(138, 158, 255, 0.1);
+        }
+
+        .button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .concepts-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
           gap: 20px;
-          animation: fadeInUp 1s ease;
+          margin: 40px 0;
+          max-width: 1000px;
         }
 
-        .title-word {
-          background: linear-gradient(135deg, #8a9eff, #ff6495);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
+        .concept-card {
+          background: rgba(42, 43, 61, 0.9);
+          border: 2px solid transparent;
+          padding: 25px;
+          border-radius: 15px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          text-align: center;
+          font-size: 1.2rem;
+          font-weight: 600;
         }
 
-        .title-symbol {
-          color: #6c7091;
-          font-weight: 400;
+        .concept-card:hover {
+          border-color: #8A9EFF;
+          transform: translateY(-5px);
+          box-shadow: 0 10px 30px rgba(138, 158, 255, 0.3);
         }
 
-        .code-subtitle {
-          font-size: 1.4em;
-          color: #181925;
-          font-family: 'Monaco', 'Courier New', monospace;
-          animation: fadeInUp 1s ease 0.3s;
-          animation-fill-mode: both;
+        .concept-card.selected {
+          background: linear-gradient(135deg, rgba(138, 158, 255, 0.3), rgba(255, 100, 149, 0.3));
+          border-color: #FF6495;
         }
 
-        .code-bracket {
-          color: #8a9eff;
-          font-weight: bold;
+        .timer-display {
+          font-size: 5rem;
+          font-weight: 800;
+          color: #8A9EFF;
+          margin: 30px 0;
+          font-family: 'Courier New', monospace;
+          text-shadow: 0 0 30px rgba(138, 158, 255, 0.5);
         }
 
-        .code-text {
-          color: #6c7091;
-          margin: 0 10px;
-        }
-
-        .intro-stats {
+        .time-options {
           display: flex;
-          gap: 50px;
-          margin-top: 40px;
-          animation: fadeInUp 1s ease 0.6s;
-          animation-fill-mode: both;
+          gap: 30px;
+          margin: 30px 0;
         }
 
-        .stat-item {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
+        .time-option {
+          background: rgba(42, 43, 61, 0.9);
+          border: 3px solid transparent;
+          padding: 30px 50px;
+          border-radius: 15px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          text-align: center;
         }
 
-        .stat-number {
-          font-size: 2.5em;
-          font-weight: bold;
-          color: #ff6495;
+        .time-option:hover {
+          border-color: #8A9EFF;
+          transform: scale(1.05);
         }
 
-        .stat-label {
-          font-size: 0.9em;
-          color: #6c7091;
-          margin-top: 5px;
-          max-width: 120px;
+        .time-option.selected {
+          border-color: #FF6495;
+          background: linear-gradient(135deg, rgba(138, 158, 255, 0.2), rgba(255, 100, 149, 0.2));
+        }
+
+        .time-option h4 {
+          font-size: 2rem;
+          color: #8A9EFF;
+          margin-bottom: 10px;
+        }
+
+        .time-option p {
+          font-size: 1rem;
+          color: #6C7091;
+        }
+
+        .feature-list {
+          list-style: none;
+          padding: 20px 0;
+          max-width: 800px;
+          margin: 0 auto;
+        }
+
+        .feature-list li {
+          padding: 15px 0;
+          padding-left: 40px;
+          position: relative;
+          font-size: 1.2rem;
+          color: #EEEFF4;
+          transition: all 0.3s ease;
+        }
+
+        .feature-list li:before {
+          content: '▸';
+          position: absolute;
+          left: 0;
+          color: #FF6495;
+          font-size: 1.5rem;
+          transition: all 0.3s ease;
+        }
+
+        .feature-list li:hover {
+          transform: translateX(10px);
+          color: #8A9EFF;
+        }
+
+        .feature-list li:hover:before {
+          color: #8A9EFF;
         }
 
         @keyframes fadeInUp {
@@ -607,553 +434,331 @@ export default function TeamworkPresentation() {
           }
         }
 
-        h2 {
-          font-size: 2.2em;
-          color: #8a9eff;
-          margin-bottom: 30px;
-          font-weight: 600;
-        }
-
-        h3 {
-          font-size: 1.3em;
-          color: #8a9eff;
-          margin: 10px 0;
-          font-weight: 500;
-        }
-
-        p {
-          font-size: 1.1em;
-          color: #181925;
-          line-height: 1.8;
-        }
-
-        .subtitle {
-          color: #6c7091;
-          font-size: 0.95em;
-          margin-top: 10px;
-        }
-
-        .emphasis {
-          color: #ff6495;
-          font-weight: 600;
-        }
-
-        .code-inline {
-          font-family: 'Monaco', 'Courier New', monospace;
-          background: rgba(138, 158, 255, 0.1);
-          padding: 4px 8px;
-          border-radius: 4px;
-          color: #8a9eff;
-        }
-
-        /* Navigation */
-        .navigation {
-          position: absolute;
-          bottom: 20px;
-          left: 50%;
-          transform: translateX(-50%);
-          display: flex;
-          gap: 15px;
-          z-index: 20;
-        }
-
-        .nav-btn {
-          padding: 12px 28px;
-          background: linear-gradient(135deg, #8a9eff, #a5b4ff);
-          color: #eeeff4;
-          border: none;
-          border-radius: 30px;
-          cursor: pointer;
-          font-size: 16px;
-          font-weight: 500;
-          transition: all 0.3s ease;
-          box-shadow: 0 4px 20px rgba(138, 158, 255, 0.3);
-        }
-
-        .nav-btn:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 25px rgba(138, 158, 255, 0.5);
-        }
-
-        .nav-btn:disabled {
-          opacity: 0.4;
-          cursor: not-allowed;
-          background: #6c7091;
-        }
-
-        /* Foundation Visual */
-        .foundation-visual {
-          display: flex;
-          gap: 50px;
-          margin: 40px 0;
-        }
-
-        .concept-card {
-          background: linear-gradient(145deg, #ffffff, #f5f6fa);
-          padding: 30px;
-          border-radius: 20px;
-          flex: 1;
-          border: 2px solid transparent;
-          transition: all 0.3s ease;
-        }
-
-        .concept-card:hover {
-          transform: translateY(-5px);
-          border-color: #8a9eff;
-          box-shadow: 0 10px 30px rgba(138, 158, 255, 0.2);
-        }
-
-        .concept-icon {
-          font-size: 3em;
-          margin-bottom: 15px;
-        }
-
-        .foundation-bottom {
-          font-size: 1.3em;
-          margin-top: 30px;
-        }
-
-        /* Ice Breaker */
-        .icebreaker-container {
-          padding: 40px;
-          background: linear-gradient(145deg, rgba(138, 158, 255, 0.05), rgba(255, 100, 149, 0.05));
-          border-radius: 20px;
-          max-width: 600px;
-        }
-
-        .icebreaker-icon {
-          font-size: 4em;
-          margin-bottom: 20px;
-          animation: pulse 2s infinite;
-        }
-
-        .icebreaker-prompt {
-          background: white;
-          padding: 20px;
-          border-radius: 15px;
-          margin: 20px 0;
-          box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .prompt-question {
-          font-size: 1.3em;
-          color: #ff6495;
-          margin: 20px 0;
-        }
-
-        .timer-indicator {
-          font-size: 2em;
-          margin-top: 20px;
+        .animate-in {
+          animation: fadeInUp 0.8s ease forwards;
         }
 
         @keyframes pulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.05); }
+          0%, 100% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.05);
+          }
         }
 
-        /* Icon Grid */
-        .icon-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 25px;
-          margin-top: 30px;
+        .pulse {
+          animation: pulse 2s infinite;
         }
 
-        .icon-grid-large {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 25px;
-          margin-top: 30px;
+        .progress-bar {
+          position: fixed;
+          top: 0;
+          left: 0;
           width: 100%;
+          height: 4px;
+          background: rgba(108, 112, 145, 0.2);
+          z-index: 1000;
         }
 
-        .icon-card {
-          background: linear-gradient(145deg, #ffffff, #f5f6fa);
-          padding: 20px;
-          border-radius: 20px;
-          transition: all 0.3s ease;
-          border: 2px solid transparent;
+        .progress-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #8A9EFF, #FF6495);
+          width: 0%;
+          transition: width 0.3s ease;
         }
 
-        .icon-card:hover {
-          transform: translateY(-5px);
-          border-color: #8a9eff;
-          box-shadow: 0 10px 30px rgba(138, 158, 255, 0.2);
-        }
-
-        .icon {
-          font-size: 2.5em;
-          margin-bottom: 10px;
-          background: linear-gradient(135deg, #8a9eff, #ff6495);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-
-        /* 5 C's */
-        .five-cs {
+        .controls {
+          position: fixed;
+          bottom: 30px;
+          left: 50%;
+          transform: translateX(-50%);
           display: flex;
-          justify-content: space-around;
-          flex-wrap: wrap;
           gap: 20px;
-          margin-top: 30px;
+          z-index: 100;
         }
 
-        .c-item {
-          padding: 20px;
-          background: linear-gradient(145deg, rgba(138, 158, 255, 0.05), rgba(138, 158, 255, 0.1));
-          border-radius: 20px;
-          flex: 1;
-          min-width: 150px;
-          transition: all 0.3s ease;
-          border: 2px solid transparent;
-        }
-
-        .c-item:hover {
-          transform: scale(1.05);
-          border-color: #8a9eff;
-        }
-
-        .c-icon {
-          font-size: 2em;
-          margin-bottom: 10px;
-        }
-
-        /* Challenges */
-        .challenges-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 20px;
-          margin-top: 30px;
-        }
-
-        .challenge-card {
-          background: linear-gradient(145deg, #ffffff, #f5f6fa);
-          padding: 25px;
-          border-radius: 15px;
-          border-left: 4px solid #ff6495;
-          transition: all 0.3s ease;
-          text-align: left;
-        }
-
-        .challenge-card:hover {
-          transform: translateX(5px);
-          box-shadow: 0 5px 20px rgba(255, 100, 149, 0.2);
-        }
-
-        .challenge-card h3 {
-          color: #ff6495;
-          margin-bottom: 10px;
-        }
-
-        .solution {
-          margin-top: 10px;
-          padding-top: 10px;
-          border-top: 1px solid rgba(108, 112, 145, 0.2);
-          color: #6c7091;
-          font-size: 0.9em;
-        }
-
-        /* Tips */
-        .tips-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 30px;
-          margin-top: 30px;
-        }
-
-        .tip-card {
-          background: white;
-          padding: 25px;
-          border-radius: 15px;
-          box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-          transition: all 0.3s ease;
-          border-top: 3px solid #8a9eff;
-          text-align: left;
-        }
-
-        .tip-card:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 10px 25px rgba(138, 158, 255, 0.2);
-        }
-
-        .tip-number {
-          display: inline-block;
-          background: linear-gradient(135deg, #8a9eff, #ff6495);
-          color: white;
-          width: 30px;
-          height: 30px;
+        .control-btn {
+          width: 50px;
+          height: 50px;
           border-radius: 50%;
-          text-align: center;
-          line-height: 30px;
-          font-weight: bold;
-          margin-bottom: 10px;
-        }
-
-        /* Stories */
-        .stories-container {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 25px;
-          margin-top: 30px;
-        }
-
-        .story-card {
-          background: white;
-          padding: 25px;
-          border-radius: 15px;
-          transition: all 0.3s ease;
-          border-bottom: 3px solid #8a9eff;
-        }
-
-        .story-card:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 10px 25px rgba(138, 158, 255, 0.2);
-        }
-
-        .story-icon {
-          font-size: 2em;
-          margin-bottom: 10px;
-        }
-
-        .story-footer {
-          margin-top: 30px;
-          font-size: 1.3em;
-        }
-
-        /* Drawing Game */
-        .game-container {
-          width: 100%;
-          background: linear-gradient(145deg, rgba(138, 158, 255, 0.05), rgba(255, 100, 149, 0.05));
-          padding: 30px;
-          border-radius: 20px;
-        }
-
-        .game-instructions {
-          background: white;
-          padding: 20px;
-          border-radius: 15px;
-          margin-bottom: 20px;
-          text-align: left;
-        }
-
-        .game-instructions ol {
-          padding-left: 20px;
-          color: #181925;
-        }
-
-        .game-instructions li {
-          margin: 10px 0;
-        }
-
-        .timer-choice {
-          color: #6c7091;
-          margin: 20px 0;
-        }
-
-        .timer-section {
-          display: flex;
-          justify-content: space-around;
-          gap: 40px;
-          margin-top: 30px;
-        }
-
-        .timer-box {
-          flex: 1;
-          background: white;
-          padding: 30px;
-          border-radius: 20px;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
-
-        .timer-label {
-          color: #6c7091;
-          font-size: 1.1em;
-          margin-bottom: 15px;
-          font-weight: 600;
-        }
-
-        .timer-display {
-          font-size: 3.5em;
-          color: #8a9eff;
-          font-weight: bold;
-          font-family: 'Monaco', 'Courier New', monospace;
-          margin: 20px 0;
-          min-height: 80px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: color 0.3s ease;
-        }
-
-        .timer-display.timer-ending {
-          color: #ff6495;
-          animation: pulse 1s infinite;
-        }
-
-        .timer-controls {
-          display: flex;
-          gap: 10px;
-          justify-content: center;
-        }
-
-        .timer-btn {
-          padding: 12px 24px;
-          border: none;
-          border-radius: 25px;
+          background: rgba(42, 43, 61, 0.9);
+          border: 2px solid rgba(138, 158, 255, 0.3);
+          color: #8A9EFF;
           cursor: pointer;
-          font-size: 16px;
-          font-weight: 500;
-          transition: all 0.3s ease;
-        }
-
-        .start-btn {
-          background: linear-gradient(135deg, #8a9eff, #a5b4ff);
-          color: white;
-        }
-
-        .start-btn:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(138, 158, 255, 0.4);
-        }
-
-        .reset-btn {
-          background: linear-gradient(135deg, #ff6495, #ff8aae);
-          color: white;
-        }
-
-        .reset-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(255, 100, 149, 0.4);
-        }
-
-        .timer-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        /* Takeaways */
-        .takeaways-box {
-          background: linear-gradient(145deg, rgba(138, 158, 255, 0.1), rgba(255, 100, 149, 0.1));
-          padding: 30px;
-          border-radius: 20px;
-          margin: 30px auto;
-        }
-
-        .takeaway-item {
           display: flex;
           align-items: center;
-          margin: 20px 0;
-          padding: 15px;
-          background: white;
-          border-radius: 10px;
+          justify-content: center;
           transition: all 0.3s ease;
+          font-size: 1.5rem;
         }
 
-        .takeaway-item:hover {
-          transform: translateX(10px);
-          box-shadow: 0 5px 15px rgba(138, 158, 255, 0.2);
+        .control-btn:hover {
+          background: rgba(138, 158, 255, 0.2);
+          transform: scale(1.1);
         }
 
-        .takeaway-icon {
-          font-size: 1.5em;
-          margin-right: 15px;
+        .hidden {
+          display: none !important;
         }
 
-        .takeaway-text {
-          flex: 1;
-          color: #181925;
-          font-size: 1.1em;
-        }
+        @media (max-width: 768px) {
+          h1 {
+            font-size: 2.5rem;
+          }
 
-        .challenge-text {
-          margin-top: 30px;
-          font-size: 1.2em;
-        }
+          h2 {
+            font-size: 2rem;
+          }
 
-        /* Closing */
-        .quote {
-          padding: 25px;
-          border-left: 4px solid #8a9eff;
-          background: linear-gradient(90deg, rgba(138, 158, 255, 0.1), rgba(138, 158, 255, 0.05));
-          border-radius: 0 15px 15px 0;
-          margin: 30px 0;
-          font-style: italic;
-        }
+          p {
+            font-size: 1.1rem;
+          }
 
-        .quote p {
-          color: #6c7091;
-        }
+          .nav-dots {
+            right: 15px;
+          }
 
-        .author {
-          text-align: right;
-          margin-top: 10px;
-          color: #8a9eff;
-          font-weight: 500;
-        }
+          .concepts-grid {
+            grid-template-columns: 1fr;
+          }
 
-        .git-message {
-          margin: 30px 0;
-          font-size: 1.5em;
-          color: #ff6495;
-        }
-
-        .final-message {
-          margin: 40px 0;
-        }
-
-        .final-message p {
-          font-size: 1.3em;
-          margin: 10px 0;
-        }
-
-        .thank-you {
-          font-size: 1.2em;
-          color: #8a9eff;
-          margin-top: 30px;
+          .time-options {
+            flex-direction: column;
+          }
         }
       `}</style>
 
-      <div className="presentation-container">
-        <div className="slide-indicator">
-          {currentSlide + 1} / {totalSlides}
-        </div>
-
-        <div className="progress-dots">
-          {[...Array(totalSlides)].map((_, i) => (
-            <div key={i} className={`dot ${i === currentSlide ? 'active' : ''}`} />
-          ))}
-        </div>
-
-        {slides.map((slide, index) => (
-          <div
-            key={slide.id}
-            className={`slide ${
-              index === currentSlide ? 'active' : 
-              index < currentSlide ? 'prev' : ''
-            }`}
-          >
-            {slide.content}
-          </div>
-        ))}
-
-        <div className="navigation">
-          <button 
-            className="nav-btn" 
-            onClick={() => navigateSlide(-1)}
-            disabled={currentSlide === 0}
-          >
-            ← Previous
-          </button>
-          <button 
-            className="nav-btn" 
-            onClick={() => navigateSlide(1)}
-            disabled={currentSlide === totalSlides - 1}
-          >
-            Next →
-          </button>
-        </div>
+      <div className="progress-bar">
+        <div className="progress-fill" id="progressBar"></div>
       </div>
-    </div>
-  )
+
+      <div className="nav-dots">
+        {Array.from({ length: totalSlides }, (_, i) => (
+          <div
+            key={i}
+            className={`nav-dot ${i === currentSlide ? 'active' : ''}`}
+            onClick={() => {
+              setCurrentSlide(i);
+              scrollToSlide(i);
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="controls">
+        <button className="control-btn" onClick={previousSlide}>←</button>
+        <button className="control-btn" onClick={nextSlide}>→</button>
+      </div>
+
+      <div className="slides-container" ref={slidesContainerRef}>
+
+        <section className="slide">
+          <h1 className="animate-in">The Power of Teamwork & Collaboration</h1>
+          <p className="subtitle animate-in" style={{animationDelay: '0.2s'}}>Transforming Individual Talent into Collective Brilliance</p>
+          <button className="button pulse" onClick={nextSlide}>Let&apos;s Begin</button>
+        </section>
+
+        <section className="slide">
+          <h2>A $125 Million Silence</h2>
+          <div className="content-card animate-in">
+            <div className="story-box">
+              <p>In 1999, NASA lost the Mars Climate Orbiter. Not because of complex space physics or asteroid strikes...</p>
+              <p style={{marginTop: '20px', color: '#FF6495'}}>But because one team used metric units whilst another used imperial.</p>
+              <p style={{marginTop: '20px'}}>Nobody talked. Nobody checked. Nobody collaborated.</p>
+            </div>
+            <h3 style={{marginTop: '40px'}}>That silence cost $125 million.</h3>
+            <p style={{marginTop: '20px'}}>Today, we&apos;ll ensure that never happens to your teams.</p>
+          </div>
+        </section>
+
+        <section className="slide">
+          <h2>Your Teamwork Stories</h2>
+          <div className="content-card">
+            <h3>Share Your Experience</h3>
+            <p style={{marginBottom: '40px'}}>Turn to your partner and share:</p>
+            <ul className="feature-list">
+              <li>Your BEST team experience - what made it extraordinary?</li>
+              <li>Your WORST team experience - what went wrong?</li>
+            </ul>
+          </div>
+        </section>
+
+        <section className="slide">
+          <h2>Why Teams Fail Today</h2>
+          <div className="content-card">
+            <h3>The 5 Dysfunctions</h3>
+            <ul className="feature-list">
+              <li><strong>Absence of Trust</strong> - Fear of vulnerability</li>
+              <li><strong>Fear of Conflict</strong> - Artificial harmony</li>
+              <li><strong>Lack of Commitment</strong> - Ambiguity prevails</li>
+              <li><strong>Avoidance of Accountability</strong> - Low standards</li>
+              <li><strong>Inattention to Results</strong> - Individual goals win</li>
+            </ul>
+            <p style={{marginTop: '30px', fontStyle: 'italic'}}>Sound familiar from your worst team stories?</p>
+          </div>
+        </section>
+
+        <section className="slide">
+          <h2>What Great Teamwork Looks Like</h2>
+          <div className="content-card">
+            <h3>The 5 C&apos;s Framework</h3>
+            <ul className="feature-list">
+              <li><strong>Common Purpose</strong> - Everyone knows the &apos;why&apos;</li>
+              <li><strong>Clear Roles</strong> - Strengths-based contributions</li>
+              <li><strong>Communication</strong> - Open, honest, frequent</li>
+              <li><strong>Commitment</strong> - Team over individual success</li>
+              <li><strong>Celebration</strong> - Recognising collective wins</li>
+            </ul>
+            <p style={{marginTop: '30px'}}>These were present in all your BEST team stories!</p>
+          </div>
+        </section>
+
+        <section className="slide">
+          <h2>What Stops Us?</h2>
+          <div className="content-card">
+            <h3>The Hidden Saboteurs</h3>
+            <p>Which is YOUR biggest barrier?</p>
+            <div className="concepts-grid" style={{marginTop: '40px'}}>
+              {['Ego & Competition', 'Fear of Conflict', 'Lack of Trust', 'Unclear Expectations', 'Virtual Distance', 'Time Pressure'].map((barrier) => (
+                <div
+                  key={barrier}
+                  className="concept-card"
+                  onClick={(e) => selectBarrier(e.currentTarget)}
+                >
+                  {barrier}
+                </div>
+              ))}
+            </div>
+            <p style={{marginTop: '30px', color: '#6C7091'}}>Click to vote - multiple selections allowed</p>
+          </div>
+        </section>
+
+        <section className="slide">
+          <h2>Practical Tools & Methods</h2>
+          <div className="content-card">
+            <ul className="feature-list">
+              <li><strong>Daily Stand-ups</strong> - 15-minute team sync</li>
+              <li><strong>After-Action Reviews</strong> - Learning from success AND failure</li>
+              <li><strong>Cross-functional Shadowing</strong> - Walk in teammates&apos; shoes</li>
+              <li><strong>Shared Scoreboards</strong> - Visible team metrics</li>
+              <li><strong>Failure Parties</strong> - Celebrate learning from mistakes</li>
+            </ul>
+            <p style={{marginTop: '30px'}}>No one tool is magic - but together they transform teams</p>
+          </div>
+        </section>
+
+        <section className="slide">
+          <h2>When It Works Brilliantly</h2>
+          <div className="content-card">
+            <div className="story-box">
+              <h3>The Thai Cave Rescue</h3>
+              <p>13 lives saved because divers, engineers, doctors, and locals collaborated beyond their expertise</p>
+            </div>
+            <div className="story-box" style={{marginTop: '30px'}}>
+              <h3>Leicester City&apos;s Miracle</h3>
+              <p>5000-1 odds overcome through perfect teamwork, not individual stars</p>
+            </div>
+            <div className="story-box" style={{marginTop: '30px'}}>
+              <h3>Spotify&apos;s Squad Model</h3>
+              <p>Autonomous teams collaborating like jazz musicians</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="slide">
+          <h2>Silent Story Chain Game</h2>
+          <div className="content-card">
+            <h3>Step 1: Choose Your Concept</h3>
+            <p>Select one concept for your team to illustrate</p>
+            <div className="concepts-grid">
+              {['Aquarium', 'Festival', 'Castle Grounds', 'Safari', 'Market', 'Harbor', 'Amusement Park', 'Snowy Mountain', 'Circus', 'Jungle', 'Space Station', 'Pirate Island'].map((concept) => (
+                <div
+                  key={concept}
+                  className={`concept-card ${selectedConcept === concept ? 'selected' : ''}`}
+                  onClick={() => selectGameConcept(concept)}
+                >
+                  {concept}
+                </div>
+              ))}
+            </div>
+            <button
+              className="button"
+              onClick={goToTimerSelection}
+              disabled={!selectedConcept}
+              style={{opacity: selectedConcept ? '1' : '0.5'}}
+            >
+              Next: Choose Time
+            </button>
+          </div>
+        </section>
+
+        <section className="slide">
+          <h2>Silent Story Chain Game</h2>
+          <div className="content-card">
+            <h3>Selected Concept: {selectedConcept || 'None'}</h3>
+            <p>Step 2: Choose your time limit per person</p>
+            <div className="time-options">
+              <div
+                className={`time-option ${selectedTime === 30 ? 'selected' : ''}`}
+                onClick={() => selectTime(30)}
+              >
+                <h4>30 Seconds</h4>
+                <p>Quick & Energetic</p>
+              </div>
+              <div
+                className={`time-option ${selectedTime === 60 ? 'selected' : ''}`}
+                onClick={() => selectTime(60)}
+              >
+                <h4>1 Minute</h4>
+                <p>More Detailed</p>
+              </div>
+            </div>
+            <div className={selectedTime ? '' : 'hidden'} style={{marginTop: '40px'}}>
+              <div className="timer-display" style={{color: currentTimeLeft <= 10 ? '#FF6495' : '#8A9EFF'}}>
+                {currentTimeLeft === 0 ? 'SWITCH!' : formatTime(currentTimeLeft)}
+              </div>
+              <div style={{display: 'flex', justifyContent: 'center', gap: '20px'}}>
+                <button className="button" onClick={toggleTimer}>
+                  {isTimerRunning ? 'PAUSE' : 'START'}
+                </button>
+                <button className="button secondary" onClick={resetTimer}>RESET</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="slide">
+          <h2>Your Commitment</h2>
+          <div className="content-card">
+            <h3>One Thing You&apos;ll Change</h3>
+            <p style={{marginBottom: '40px'}}>Write down and share with your partner:</p>
+            <div className="story-box">
+              <p style={{fontSize: '1.5rem', color: '#8A9EFF'}}>&quot;By next Friday, I will...&quot;</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="slide">
+          <h2>Remember This</h2>
+          <div className="content-card">
+            <div className="story-box" style={{background: 'linear-gradient(135deg, rgba(138, 158, 255, 0.2), rgba(255, 100, 149, 0.2))'}}>
+              <p style={{fontSize: '1.5rem', textAlign: 'center', color: '#EEEFF4'}}>
+                &quot;Teamwork isn&apos;t about being perfect together -
+                <br /><br />
+                it&apos;s about being committed to improving together.&quot;
+              </p>
+            </div>
+            <h3 style={{marginTop: '40px'}}>Your teams are waiting for someone to take the first step.</h3>
+            <p style={{fontSize: '1.5rem', color: '#8A9EFF', marginTop: '30px'}}>Why not you?</p>
+            <p style={{fontSize: '1.5rem', color: '#FF6495'}}>Why not today?</p>
+          </div>
+          <button className="button pulse" style={{marginTop: '40px'}} onClick={() => window.location.reload()}>
+            Start Again
+          </button>
+        </section>
+
+      </div>
+    </>
+  );
 }
